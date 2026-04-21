@@ -7,33 +7,45 @@
   --font-serif: "Playfair Display", serif;
   --font-mono: "JetBrains Mono", monospace;
   
-  --color-bento-bg: #F4F4F2;
-  --color-bento-ink: #1A1A1A;
+  --color-bento-bg: #FAF9F6;
+  --color-bento-ink: #111111;
   --color-bento-card: #FFFFFF;
-  --color-bento-accent: #E7FF52;
-  --color-bento-light-blue: #F0F7FF;
+  --color-bento-accent: #D9FF4C;
+  --color-bento-light-blue: #EFF6FF;
+  
+  --shadow-bento: 6px 6px 0px #111111;
+  --shadow-bento-sm: 3px 3px 0px #111111;
+  --shadow-bento-lg: 8px 8px 0px #111111;
 }
 
 @layer base {
   body {
-    @apply bg-bento-bg text-bento-ink font-sans;
+    @apply bg-bento-bg text-bento-ink font-sans antialiased selection:bg-bento-accent/50;
   }
 }
 
 .bento-card {
-  @apply bg-white border-[1.5px] border-bento-ink shadow-[4px_4px_0px_#1A1A1A] p-5 flex flex-col transition-all;
+  @apply bg-white border-2 border-bento-ink shadow-bento p-6 flex flex-col transition-all duration-300;
+}
+
+.bento-card:hover {
+  @apply shadow-bento-lg translate-x-[-2px] translate-y-[-2px];
 }
 
 .bento-card-header {
-  @apply bg-bento-ink text-white shadow-none p-5 flex items-center justify-between border-none;
+  @apply bg-bento-ink text-white shadow-none p-5 flex items-center justify-between border-none transition-none !translate-x-0 !translate-y-0 !shadow-none;
 }
 
-.bento-card-accent {
-  @apply bg-bento-accent;
+.bento-button {
+  @apply px-6 py-3 bg-bento-accent text-bento-ink font-black uppercase tracking-widest text-[11px] border-2 border-bento-ink shadow-bento-sm hover:shadow-bento hover:translate-x-[-1px] hover:translate-y-[-1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed;
+}
+
+.bento-input {
+  @apply w-full bg-white border-2 border-bento-ink p-4 font-mono text-sm focus:outline-none focus:bg-bento-light-blue transition-colors;
 }
 
 .bento-label {
-  @apply text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 block;
+  @apply text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block;
 }
 
 .markdown-body {
