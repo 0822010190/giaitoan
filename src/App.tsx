@@ -17,7 +17,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type SolveMode = 'FULL' | 'EXAM' | 'SHORT';
+type SolveMode = 'FULL' | 'SHORT';
 
 interface FileData {
   base64: string;
@@ -38,17 +38,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<PastSolution[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
-  const [apiKey, setApiKey] = useState('');
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleAuthorize = () => {
-    if (apiKey.trim().length > 20) {
-      setIsAuthorized(true);
-    } else {
-      alert("Vui lòng nhập API Key hợp lệ để tiếp tục.");
-    }
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,7 +74,11 @@ export default function App() {
     setResult('');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: apiKey || process.env.GEMINI_API_KEY });
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (!geminiKey) {
+        throw new Error("Không tìm thấy GEMINI_API_KEY trong hệ thống.");
+      }
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
       const systemInstruction = `
 Bạn là giáo viên toán THCS/THPT tại Việt Nam, có kinh nghiệm giảng dạy và trình bày bài giải theo chuẩn sách giáo khoa (SGK).
 
@@ -116,7 +110,6 @@ Giải bài toán một cách:
 
 ⚙️ CHẾ ĐỘ GIẢI (${mode}):
 - FULL: Giải cực kỳ chi tiết, giải thích mọi khía cạnh.
-- EXAM: Trình bày như bài thi (ngắn gọn, đủ ý, chuẩn mực).
 - SHORT: Chỉ đưa ra đáp án và các bước chính yếu nhất.
 
 📄 ĐỊNH DẠNG ĐẦU RA:
@@ -171,97 +164,53 @@ Giải bài toán một cách:
 
   const clearHistory = () => setHistory([]);
 
-  if (!isAuthorized) {
-    return (
-      <div className="min-h-screen bg-bento-bg flex items-center justify-center p-6">
-        <div className="max-w-md w-full bento-card space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="bg-bento-accent p-4 border-2 border-bento-ink">
-              <BookOpen className="w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="font-black text-2xl uppercase tracking-tighter">Xác Thực AI</h1>
-              <p className="text-[10px] font-black opacity-50 uppercase tracking-widest">Yêu cầu chìa khóa truy cập</p>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="bento-label">Gemini API Key</label>
-              <input 
-                type="password" 
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Nhập API Key của bạn..."
-                className="bento-input"
-              />
-              <p className="mt-2 text-[10px] text-gray-500 italic">
-                * Khóa này dùng để trực tiếp gọi mô hình AI giải toán.
-              </p>
-            </div>
-            
-            <button 
-              onClick={handleAuthorize}
-              disabled={apiKey.length < 10}
-              className="w-full bento-button"
-            >
-              Truy Cập Ứng Dụng
-            </button>
-          </div>
-
-          <div className="pt-4 border-t-2 border-bento-ink border-dashed">
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-              <Info className="w-3 h-3" />
-              <span>Dữ liệu của bạn được bảo mật tuyệt đối.</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen p-4 lg:p-12 transition-colors">
-      <div className="max-w-7xl mx-auto flex flex-col gap-8">
+    <div className="min-h-screen p-4 lg:p-12 transition-all font-sans">
+      <div className="max-w-7xl mx-auto flex flex-col gap-10">
         
         {/* Header */}
-        <header className="bento-card bento-card-header !p-8">
-          <div className="flex items-center gap-6">
-            <div className="bg-bento-accent p-4 border-2 border-bento-ink text-bento-ink shadow-[4px_4px_0px_white]">
-              <BookOpen className="w-8 h-8" />
+        <header className="bento-card-header !p-10 !shadow-bento">
+          <div className="flex items-center gap-8">
+            <div className="bg-bento-accent p-5 border-2 border-bento-ink text-bento-ink shadow-[5px_5px_0px_white] rounded-2xl rotate-[-2deg]">
+              <BookOpen className="w-10 h-10" />
             </div>
             <div>
-              <h1 className="font-black text-3xl leading-none uppercase tracking-tighter">Gia Sư Toán AI</h1>
-              <p className="text-[11px] mt-1 opacity-70 uppercase tracking-[0.3em] font-black">Professional Math Assistant</p>
+              <h1 className="font-black text-4xl leading-none uppercase tracking-tighter">Thầy Giáo AI</h1>
+              <p className="text-xs mt-2 opacity-60 uppercase tracking-[0.4em] font-black">Chuyên Gia Giải Toán SGK</p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-3 bg-white/5 p-1.5 border-2 border-white/10">
-            {(['FULL', 'EXAM', 'SHORT'] as SolveMode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={cn(
-                  "px-5 py-2 text-[11px] font-black transition-all uppercase tracking-widest",
-                  mode === m 
-                    ? "bg-bento-accent text-bento-ink shadow-[3px_3px_0px_white]" 
-                    : "text-white/40 hover:text-white"
-                )}
-              >
-                {m === 'FULL' ? 'Chi tiết' : m === 'EXAM' ? 'Bài thi' : 'Rút gọn'}
-              </button>
-            ))}
+          <div className="flex items-center gap-6">
+            <div className="hidden lg:flex items-center gap-4 bg-white/10 p-2 border-2 border-white/20 rounded-2xl">
+              {(['FULL', 'SHORT'] as SolveMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={cn(
+                    "px-8 py-3 text-[11px] font-black transition-all uppercase tracking-[0.2em] rounded-xl",
+                    mode === m 
+                      ? "bg-white text-bento-ink shadow-bento-sm" 
+                      : "text-white/40 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  {m === 'FULL' ? 'Chi tiết' : 'Rút gọn'}
+                </button>
+              ))}
+            </div>
           </div>
         </header>
 
         {/* Main Content Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           
           {/* Left Column: Input */}
-          <div className="lg:col-span-5 flex flex-col gap-8">
-            <section className="bento-card flex-1 min-h-[450px]">
-              <div className="flex items-center justify-between mb-8">
-                <span className="bento-label">01. Nội dung đề bài</span>
-                <div className="flex items-center gap-3">
+          <div className="lg:col-span-5 flex flex-col gap-10">
+            <section className="bento-card flex-1 min-h-[500px] !p-10">
+              <div className="flex items-center justify-between mb-10">
+                <span className="bento-label">
+                  <div className="w-3 h-3 bg-bento-primary rounded-full animate-pulse" />
+                  01. Đề bài & Tài liệu
+                </span>
+                <div className="flex items-center gap-4">
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -271,28 +220,31 @@ Giải bài toán một cách:
                   />
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-3 border-2 border-bento-ink bg-white hover:bg-bento-light-blue transition-colors group"
+                    className="p-4 border-2 border-bento-ink bg-white hover:bg-bento-light-blue transition-all rounded-xl shadow-bento-sm active:shadow-none translate-y-[-2px] active:translate-y-0"
                     title="Tải lên Ảnh hoặc PDF"
                   >
-                    <FileUp className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <FileUp className="w-5 h-5 text-bento-ink" />
                   </button>
                 </div>
               </div>
               
               {selectedFile && (
-                <div className="mb-6 p-4 bg-bento-accent/10 border-2 border-bento-ink border-dashed flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="bg-bento-ink text-white p-2">
+                <div className="mb-8 p-5 bg-bento-primary/5 border-2 border-bento-primary/30 border-dashed flex items-center justify-between rounded-2xl animate-in slide-in-from-top-4 duration-500">
+                  <div className="flex items-center gap-4 overflow-hidden">
+                    <div className="bg-bento-ink text-white p-3 rounded-xl">
                       {selectedFile.mimeType.startsWith('image/') ? (
-                        <ImageIcon className="w-4 h-4" />
+                        <ImageIcon className="w-5 h-5" />
                       ) : (
-                        <FileText className="w-4 h-4" />
+                        <FileText className="w-5 h-5" />
                       )}
                     </div>
-                    <span className="text-xs font-black truncate italic uppercase tracking-wider">{selectedFile.name}</span>
+                    <div>
+                      <span className="text-[11px] font-black uppercase tracking-wider block text-slate-400">File đính kèm</span>
+                      <span className="text-sm font-bold truncate max-w-[180px] block">{selectedFile.name}</span>
+                    </div>
                   </div>
-                  <button onClick={removeFile} className="p-2 hover:bg-red-500 hover:text-white transition-colors border-2 border-transparent hover:border-bento-ink">
-                    <X className="w-4 h-4" />
+                  <button onClick={removeFile} className="p-3 hover:bg-red-50 text-red-500 transition-colors rounded-xl border-2 border-transparent hover:border-red-200">
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
               )}
@@ -300,54 +252,57 @@ Giải bài toán một cách:
               <textarea
                 value={problem}
                 onChange={(e) => setProblem(e.target.value)}
-                placeholder={selectedFile ? "Nhập thêm yêu cầu cụ thể (vô hiệu hóa nếu không cần)..." : "Nhập đề bài tại đây hoặc tải lên file Ảnh/PDF..."}
-                className="w-full flex-1 resize-none border-none focus:ring-0 text-base font-medium leading-relaxed placeholder:opacity-30 p-2"
+                placeholder={selectedFile ? "Nhập thêm ghi chú (không bắt buộc)..." : "Nhập câu hỏi hoặc đề bài tại đây..."}
+                className="w-full flex-1 resize-none border-none focus:ring-0 text-lg font-medium leading-relaxed placeholder:opacity-30 p-2"
               />
               
-              <div className="mt-8">
+              <div className="mt-10">
                 <button
                   onClick={handleSolve}
                   disabled={loading || (!problem.trim() && !selectedFile)}
-                  className="w-full bento-button !text-sm !py-5"
+                  className="w-full bento-button !text-base !py-6 !rounded-2xl"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Đang xử lý dữ liệu...
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      Đang phân tích đề...
                     </>
                   ) : (
                     <>
-                      <Send className="w-5 h-5" />
-                      Tạo Lời Giải Hệ Thống
+                      <Send className="w-6 h-6" />
+                      Bắt Đầu Giải Toán
                     </>
                   )}
                 </button>
               </div>
             </section>
 
-            <section className="bento-card border-dashed bg-transparent shadow-none">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="bento-label">02. Lịch sử & Kiểm tra</h3>
+            <section className="bento-card border-dashed bg-slate-50/50 shadow-none !p-10">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="bento-label">
+                  <History className="w-4 h-4" /> 
+                  02. Nhật ký học tập
+                </h3>
                 {history.length > 0 && (
-                  <button onClick={clearHistory} className="text-gray-400 hover:text-red-500 transition-colors uppercase text-[9px] font-black tracking-widest flex items-center gap-1">
-                    <Trash2 className="w-3 h-3" /> Xóa hết
+                  <button onClick={clearHistory} className="text-slate-400 hover:text-red-500 transition-colors uppercase text-[10px] font-black tracking-widest flex items-center gap-2">
+                    <Trash2 className="w-4 h-4" /> Làm sạch
                   </button>
                 )}
               </div>
               
               {history.length === 0 ? (
-                <div className="py-2 space-y-4 opacity-40">
-                  <div className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest">
-                    <div className="w-4 h-4 border-2 border-bento-ink" />
-                    <span>Hỗ trợ đa phương thức</span>
+                <div className="py-2 space-y-5 opacity-40">
+                  <div className="flex items-center gap-4 text-[11px] font-black uppercase tracking-widest">
+                    <div className="w-5 h-5 border-2 border-bento-ink rounded-lg" />
+                    <span>Hỗ trợ Hình học & Đại số</span>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest">
-                    <div className="w-4 h-4 border-2 border-bento-ink" />
-                    <span>Bảo mật Gemini 3.1 Pro</span>
+                  <div className="flex items-center gap-4 text-[11px] font-black uppercase tracking-widest">
+                    <div className="w-5 h-5 border-2 border-bento-ink rounded-lg" />
+                    <span>Chuẩn kiến thức SGK</span>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[220px] overflow-y-auto pr-3 custom-scrollbar">
+                <div className="space-y-4 max-h-[250px] overflow-y-auto pr-4 custom-scrollbar">
                   {history.map((item, idx) => (
                     <button
                       key={idx}
@@ -355,13 +310,15 @@ Giải bài toán một cách:
                         setProblem(item.problem.replace('...', ''));
                         setResult(item.solution);
                       }}
-                      className="w-full text-left p-4 border-2 border-bento-ink hover:bg-bento-accent hover:shadow-bento-sm transition-all flex items-center justify-between group bg-white"
+                      className="w-full text-left p-5 border-2 border-bento-ink hover:bg-white hover:shadow-bento-sm transition-all flex items-center justify-between group bg-white/50 rounded-2xl"
                     >
-                      <div className="flex flex-col gap-1 overflow-hidden">
-                        <p className="text-[11px] font-black uppercase truncate group-hover:text-bento-ink">{item.problem}</p>
-                        <span className="text-[9px] opacity-40 font-bold">{item.timestamp}</span>
+                      <div className="flex flex-col gap-2 overflow-hidden">
+                        <p className="text-[11px] font-black uppercase truncate group-hover:text-bento-primary transition-colors">{item.problem}</p>
+                        <span className="text-[10px] font-bold text-slate-400 tracking-wider">{item.timestamp}</span>
                       </div>
-                      <BookOpen className="w-4 h-4 shrink-0 opacity-20 group-hover:opacity-100 transition-opacity" />
+                      <div className="p-2 bg-bento-light-blue rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                        <BookOpen className="w-4 h-4 text-bento-primary" />
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -372,56 +329,56 @@ Giải bài toán một cách:
           {/* Right Column: Result */}
           <div className="lg:col-span-7">
             <section className={cn(
-              "bento-card min-h-[700px] h-full relative overflow-hidden",
-              !result && "justify-center items-center text-center bg-bento-light-blue/20"
+              "bento-card min-h-[750px] h-full relative overflow-hidden !p-0",
+              !result && "justify-center items-center text-center bg-white"
             )}>
-              <div className="absolute top-0 left-0 right-0 p-6 border-b-2 border-bento-ink flex items-center justify-between bg-white/90 backdrop-blur-md z-20 sticky">
-                <span className="bento-label m-0">03. Bảng Giải Chi Tiết</span>
-                {result && (
+              {result && (
+                <div className="absolute top-0 left-0 right-0 p-8 border-b-2 border-bento-ink flex items-center justify-between bg-white/95 backdrop-blur-xl z-30 sticky rounded-t-2xl">
+                  <span className="bento-label m-0">03. Lời Giải Hệ Thống</span>
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(result);
                       alert("Đã sao chép lời giải!");
                     }}
-                    className="bento-button !py-2 !px-4 !shadow-bento-sm hover:!shadow-bento-sm active:!shadow-none"
+                    className="bento-button !py-3 !px-6 !text-[10px] !rounded-xl"
                   >
-                    Copy LaTeX
+                    Sao Chép LaTeX
                   </button>
-                )}
-              </div>
+                </div>
+              )}
               
-              <div className="p-4 lg:p-10 flex-1">
+              <div className="p-8 lg:p-14 flex-1">
                 {!result && !loading && (
-                  <div className="py-20 animate-in zoom-in duration-500">
-                    <div className="w-24 h-24 bg-white border-2 border-bento-ink mx-auto flex items-center justify-center mb-8 rotate-3 shadow-bento">
-                      <BookOpen className="w-12 h-12 text-bento-ink" />
+                  <div className="py-24 animate-in zoom-in duration-700">
+                    <div className="w-32 h-32 bg-bento-accent border-2 border-bento-ink mx-auto flex items-center justify-center mb-10 rotate-6 shadow-bento rounded-[2.5rem]">
+                      <BookOpen className="w-14 h-14 text-bento-ink" />
                     </div>
-                    <h3 className="font-serif italic text-3xl text-bento-ink mb-4">Sẵn sàng phân tích...</h3>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em] max-w-xs mx-auto">
-                      Vui lòng nhập đề bài hoặc tải lên tệp tin để xem kết quả.
+                    <h3 className="font-serif italic text-4xl text-bento-ink mb-6">Đang đợi yêu cầu...</h3>
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] max-w-sm mx-auto leading-relaxed">
+                      Hãy nhập bài toán bên trái để Thầy Giáo AI bắt đầu thực hiện nhiệm vụ.
                     </p>
                   </div>
                 )}
                 
                 {loading && (
-                  <div className="py-20 flex flex-col items-center">
-                    <div className="relative w-20 h-20 mb-10">
-                      <Loader2 className="absolute inset-0 w-full h-full text-bento-ink animate-spin" />
+                  <div className="py-28 flex flex-col items-center justify-center h-full">
+                    <div className="relative w-28 h-28 mb-12">
+                      <Loader2 className="absolute inset-0 w-full h-full text-bento-primary animate-[spin_1.5s_linear_infinite]" />
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-8 h-8 bg-bento-accent border-2 border-bento-ink rotate-45 animate-pulse" />
+                        <div className="w-12 h-12 bg-bento-accent border-[3px] border-bento-ink rounded-2xl rotate-45 animate-pulse shadow-xl" />
                       </div>
                     </div>
-                    <p className="font-serif italic text-2xl animate-pulse">Thầy giáo AI đang tư duy...</p>
-                    <div className="mt-6 flex gap-2">
-                       <div className="w-2 h-2 bg-bento-ink rounded-full animate-bounce [animation-delay:-0.3s]" />
-                       <div className="w-2 h-2 bg-bento-ink rounded-full animate-bounce [animation-delay:-0.15s]" />
-                       <div className="w-2 h-2 bg-bento-ink rounded-full animate-bounce" />
+                    <p className="font-serif italic text-3xl text-bento-ink animate-pulse">Đang giải bài, đợi chút nhé...</p>
+                    <div className="mt-10 flex gap-3">
+                       <div className="w-3 h-3 bg-bento-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                       <div className="w-3 h-3 bg-bento-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                       <div className="w-3 h-3 bg-bento-primary rounded-full animate-bounce" />
                     </div>
                   </div>
                 )}
 
                 {result && !loading && (
-                  <div className="markdown-body animate-in fade-in duration-700">
+                  <div className="markdown-body animate-in fade-in duration-1000 pt-10">
                     <ReactMarkdown
                       remarkPlugins={[remarkMath]}
                       rehypePlugins={[rehypeKatex]}
@@ -432,19 +389,19 @@ Giải bài toán một cách:
                 )}
               </div>
               
-              <div className="mt-12 pt-8 border-t-2 border-bento-ink/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-bento-ink text-white text-[9px] font-black px-2 py-1 uppercase tracking-widest">
-                    Verified Solution
+              <div className="mx-10 mb-10 p-10 border-t-2 border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-bento-primary text-white text-[10px] font-extrabold px-3 py-1.5 uppercase tracking-widest rounded-lg">
+                    Math Expert AI
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest opacity-30 italic">
-                    MathType & LaTeX Compliant
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 italic">
+                    Solution v3.1 Pro
                   </span>
                 </div>
-                <div className="flex gap-1.5 self-end sm:self-auto">
-                  <div className="w-4 h-4 bg-bento-accent border-2 border-bento-ink" />
-                  <div className="w-4 h-4 bg-white border-2 border-bento-ink" />
-                  <div className="w-4 h-4 bg-bento-ink border-2 border-bento-ink" />
+                <div className="flex gap-2 shrink-0">
+                  <div className="w-5 h-5 bg-bento-accent border-2 border-bento-ink rounded-lg shadow-sm" />
+                  <div className="w-5 h-5 bg-bento-primary border-2 border-bento-ink rounded-lg shadow-sm" />
+                  <div className="w-5 h-5 bg-bento-ink border-2 border-bento-ink rounded-lg shadow-sm" />
                 </div>
               </div>
             </section>
@@ -453,9 +410,9 @@ Giải bài toán một cách:
       </div>
 
       {/* Grid Pattern Background */}
-      <div className="fixed inset-0 pointer-events-none -z-10 opacity-[0.03]">
-        <div className="absolute inset-0 bg-[#000] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px]" />
+      <div className="fixed inset-0 pointer-events-none -z-10 bg-slate-50">
+        <div className="absolute inset-0 bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:32px_32px] opacity-30" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:100px_100px] opacity-10" />
       </div>
     </div>
   );
