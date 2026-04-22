@@ -18,6 +18,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 type SolveMode = 'FULL' | 'SHORT';
+type QuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER' | 'ESSAY';
 
 interface FileData {
   base64: string;
@@ -34,6 +35,7 @@ interface PastSolution {
 export default function App() {
   const [problem, setProblem] = useState('');
   const [mode, setMode] = useState<SolveMode>('FULL');
+  const [questionType, setQuestionType] = useState<QuestionType>('ESSAY');
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<PastSolution[]>([]);
@@ -79,6 +81,25 @@ export default function App() {
         throw new Error("Không tìm thấy GEMINI_API_KEY trong hệ thống.");
       }
       const ai = new GoogleGenAI({ apiKey: geminiKey });
+
+      const typeInstruction = {
+        'MULTIPLE_CHOICE': 'Đây là câu hỏi Trắc nghiệm khách quan (4 phương án). Hãy chọn đáp án đúng và giải thích lý do chọn.',
+        'TRUE_FALSE': 'Đây là câu hỏi Trắc nghiệm đúng sai. Hãy xác định từng ý đúng hay sai và giải thích ngắn gọn.',
+        'SHORT_ANSWER': 'Đây là câu hỏi Trắc nghiệm trả lời ngắn. Hãy tính toán và đưa ra kết quả số hoặc biểu thức ngắn gọn.',
+        'ESSAY': 'Đây là bài toán Tự luận. Hãy trình bày lời giải chi tiết, đầy đủ các bước lập luận.'
+      }[questionType];
+
+      const structureInstruction = mode === 'FULL' 
+        ? `
+1. TÓM TẮT ĐỀ BÀI: Viết lại ngắn gọn, rõ ràng, chuẩn hóa ký hiệu.
+2. PHÂN TÍCH: Xác định dạng toán. Nêu hướng giải.
+3. LỜI GIẢI CHI TIẾT: Trình bày từng bước theo SGK. Mỗi bước phải có lý do. Không nhảy bước.
+` 
+        : `
+1. ĐỀ BÀI: Ghi lại đề bài ngắn gọn.
+2. LỜI GIẢI CHI TIẾT: Trình bày các bước giải toán chính xác.
+`;
+
       const systemInstruction = `
 Bạn là giáo viên toán THCS/THPT tại Việt Nam, có kinh nghiệm giảng dạy và trình bày bài giải theo chuẩn sách giáo khoa (SGK).
 
@@ -88,11 +109,19 @@ Giải bài toán một cách:
 - Logic chặt chẽ
 - Trình bày rõ ràng, dễ hiểu cho học sinh
 
+📌 DẠNG BÀI: ${typeInstruction}
+
 📌 YÊU CẦU TRÌNH BÀY (BẮT BUỘC):
-1. TÓM TẮT ĐỀ BÀI: Viết lại ngắn gọn, rõ ràng, chuẩn hóa ký hiệu.
-2. PHÂN TÍCH: Xác định dạng toán. Nêu hướng giải.
-3. LỜI GIẢI CHI TIẾT: Trình bày từng bước theo SGK. Mỗi bước phải có lý do. Không nhảy bước.
-4. KẾT LUẬN: Đưa ra đáp án cuối cùng. Ghi rõ điều kiện (nếu có).
+${structureInstruction}
+4. HÌNH VẼ MINH HỌA (Dành cho Hình học/Đồ thị): 
+   - Sử dụng mã SVG để vẽ hình trực quan. 
+   - Đặt mã SVG vào trong khối code block mác là \`svg\`. Ví dụ:
+     \`\`\`svg
+     <svg ...>...</svg>
+     \`\`\`
+   - Đảm bảo hình vẽ có màu sắc rõ ràng (stroke="black", stroke-width="2", fill="none" hoặc màu nhạt).
+   - Có các thẻ <text> để ghi chú tên các đỉnh (A, B, C...) và các số đo.
+5. KẾT LUẬN: Đưa ra đáp án cuối cùng. Ghi rõ điều kiện (nếu có).
 
 📐 QUY TẮC VIẾT CÔNG THỨC:
 - TẤT CẢ công thức toán phải viết bằng LaTeX.
@@ -100,21 +129,10 @@ Giải bài toán một cách:
   + Inline: $...$
   + Xuống dòng: $$...$$
 - KHÔNG viết công thức dạng text.
-- Ví dụ: $$ x^2 - 5x + 6 = 0 $$
 
 🧠 QUY TẮC SUY LUẬN:
-- Sử dụng kiến thức phù hợp trình độ học sinh (ưu tiên lớp 9 nếu không nói rõ).
-- Nếu đề bài là từ ảnh/PDF và có lỗi, hãy tự sửa lỗi hợp lý và ghi rõ giả định.
-- Nếu có file đính kèm, hãy ưu tiên nội dung trong file để giải.
-- QUAN TRỌNG: Nếu trong file đính kèm (ảnh hoặc PDF) chứa NHIỀU bài tập/câu hỏi khác nhau, bạn PHẢI giải TẤT CẢ các câu hỏi đó một cách hệ thống. PHẢI GIỮ NGUYÊN TÊN GỌI (Câu, Bài) và THỨ TỰ của đề bài như trong file gốc (không được tự ý thay thế "Câu" thành "Bài" hoặc ngược lại). Tuyệt đối không được bỏ sót bất kỳ phần nào.
-
-⚙️ CHẾ ĐỘ GIẢI (${mode}):
-- FULL: Giải cực kỳ chi tiết, giải thích mọi khía cạnh.
-- SHORT: Chỉ đưa ra đáp án và các bước chính yếu nhất.
-
-📄 ĐỊNH DẠNG ĐẦU RA:
-- Văn bản sạch, không dùng ký tự lạ hay emoji thừa.
-- Giữ nguyên LaTeX để tương thích với MathType.
+- Sử dụng kiến thức phù hợp trình độ học sinh.
+- Nếu bài tập là Hình học, BẮT BUỘC phải tạo SVG minh họa để học sinh dễ hình dung. Vẽ chính xác các tỉ lệ và ghi chú tên điểm rõ ràng.
 `;
 
       const contents: any[] = [];
@@ -180,6 +198,25 @@ Giải bài toán một cách:
             </div>
           </div>
           <div className="flex items-center gap-6">
+            <div className="hidden lg:flex items-center gap-4 bg-white/10 p-2 border-2 border-white/20 rounded-2xl">
+              {(['ESSAY', 'MULTIPLE_CHOICE', 'TRUE_FALSE', 'SHORT_ANSWER'] as QuestionType[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setQuestionType(t)}
+                  className={cn(
+                    "px-4 py-3 text-[10px] font-black transition-all uppercase tracking-wider rounded-xl",
+                    questionType === t 
+                      ? "bg-bento-accent text-bento-ink shadow-bento-sm" 
+                      : "text-white/40 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  {t === 'ESSAY' ? 'Tự luận' : 
+                   t === 'MULTIPLE_CHOICE' ? 'TN Khách quan' : 
+                   t === 'TRUE_FALSE' ? 'TN Đúng/Sai' : 'Trả lời ngắn'}
+                </button>
+              ))}
+            </div>
+            <div className="h-8 w-px bg-white/20 hidden lg:block" />
             <div className="hidden lg:flex items-center gap-4 bg-white/10 p-2 border-2 border-white/20 rounded-2xl">
               {(['FULL', 'SHORT'] as SolveMode[]).map((m) => (
                 <button
@@ -337,8 +374,9 @@ Giải bài toán một cách:
                   <span className="bento-label m-0">03. Lời Giải Hệ Thống</span>
                   <button 
                     onClick={() => {
-                      navigator.clipboard.writeText(result);
-                      alert("Đã sao chép lời giải!");
+                      const cleanText = result.replace(/```svg[\s\S]*?```/g, '').trim();
+                      navigator.clipboard.writeText(cleanText);
+                      alert("Đã sao chép lời giải (không bao gồm mã hình vẽ)!");
                     }}
                     className="bento-button !py-3 !px-6 !text-[10px] !rounded-xl"
                   >
@@ -382,6 +420,49 @@ Giải bài toán một cách:
                     <ReactMarkdown
                       remarkPlugins={[remarkMath]}
                       rehypePlugins={[rehypeKatex]}
+                      components={{
+                        code({ node, className, children, ...props }) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          const isSvg = match && match[1] === 'svg';
+                          
+                          if (isSvg) {
+                            const svgCode = String(children);
+                            const downloadSvg = () => {
+                              const blob = new Blob([svgCode], { type: 'image/svg+xml' });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = `hinh_ve_toan_${Date.now()}.svg`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              URL.revokeObjectURL(url);
+                            };
+
+                            return (
+                              <div className="my-8 group relative">
+                                <div 
+                                  className="flex justify-center p-6 bg-white border-2 border-slate-100 rounded-3xl shadow-sm overflow-auto"
+                                  dangerouslySetInnerHTML={{ __html: svgCode }}
+                                />
+                                <button 
+                                  onClick={downloadSvg}
+                                  className="absolute top-4 right-4 p-2 bg-white/80 backdrop-blur border-2 border-slate-200 rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-sm hover:bg-white hover:border-bento-primary text-slate-500 hover:text-bento-primary flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
+                                  title="Tải ảnh về để chèn vào Word"
+                                >
+                                  <FileUp className="w-3 h-3" />
+                                  Lưu hình ảnh
+                                </button>
+                              </div>
+                            );
+                          }
+                          return (
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          );
+                        }
+                      }}
                     >
                       {result}
                     </ReactMarkdown>
